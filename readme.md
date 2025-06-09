@@ -241,8 +241,6 @@ abc123    | 2025-06-09T12:20:41Z     | Mozilla/5.0 (...)
 
 Developed by Kritagya Agarwal, Sumit Sharma, Jay Jain, 2025. Inspired by Mailtrack, reimagined for Firefox using modern serverless technologies.
 
-Mentorship, guidance, and code architecture suggestions by ChatGPT.
-
 ## 📄 License
 
 MIT License
