@@ -52,6 +52,11 @@ Initialize your project (if not done):
 ```bash
 wrangler init email-tracker-worker --type javascript
 ```
+or
+```
+wrangler init email-tracker-worker
+```
+based on your wrangler CLI version. (--type flag is supported in older versions only)
 
 Navigate to project:
 
@@ -59,10 +64,11 @@ Navigate to project:
 cd email-tracker-worker
 ```
 
-Create KV Namespace:
+Create KV Namespace:![th](https://github.com/user-attachments/assets/05925aa8-1a98-45b8-8131-b0bb10946bfa)
+
 
 ```bash
-wrangler kv:namespace create EMAIL_TRACKER
+wrangler kv namespace create EMAIL_TRACKER
 ```
 
 Update `wrangler.jsonc`:
