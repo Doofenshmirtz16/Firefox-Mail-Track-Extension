@@ -64,7 +64,7 @@ Navigate to project:
 cd email-tracker-worker
 ```
 
-Create KV Namespace:![th](https://github.com/user-attachments/assets/05925aa8-1a98-45b8-8131-b0bb10946bfa)
+Create KV Namespace:
 
 
 ```bash
