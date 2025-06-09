@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Email Tracker for Firefox",
+  "version": "1.0",
+  "description": "Tracks if your emails are opened by injecting a tracking pixel.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://mail.google.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://mail.google.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ]
+}
+
