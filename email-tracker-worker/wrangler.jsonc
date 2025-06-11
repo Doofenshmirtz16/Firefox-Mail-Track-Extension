@@ -3,20 +3,18 @@
  * https://developers.cloudflare.com/workers/wrangler/configuration/
  */
 {
-	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "email-tracker-worker",
 	"main": "src/index.js",
-	"compatibility_date": "2025-06-09",
-	"kv_namespaces": [
-		{
-		"binding": "EMAIL_TRACKER",
-		"id": "748ff8c428a84c26a75cb380ff46e2bd"
-		}
-	],
+	"compatibility_date": "2025-06-07",
 	"observability": {
 		"enabled": true
-	}
-
+	},
+	"kv_namespaces": [
+    {
+      "binding": "EMAIL_TRACKER",
+      "id": "9d8cc8f10cc044aeafe6b80af3f5dbe9"
+    }
+  ]
 	/**
 	 * Smart Placement
 	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement

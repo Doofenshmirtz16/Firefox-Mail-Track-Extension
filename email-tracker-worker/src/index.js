@@ -19,7 +19,6 @@ if (url.pathname === "/pixel") {
     } catch (e) {
       data = [];
     }
-<<<<<<< HEAD
   }
 
   data.push(newEntry);
@@ -67,55 +66,7 @@ if (url.pathname === "/dashboard") {
     }
   }
 
-  const html = `
-    <html>
-      <head>
-        <title>Email Opens</title>
-        <style>
-          body { font-family: sans-serif; padding: 20px; }
-          table { border-collapse: collapse; width: 100%; }
-          th, td { padding: 8px 12px; border: 1px solid #ccc; }
-          th { background: #f0f0f0; }
-        </style>
-      </head>
-      <body>
-        <h1>Email Opens Dashboard</h1>
-        <table>
-          <thead>
-            <tr><th>ID</th><th>Timestamp</th><th>User Agent</th></tr>
-          </thead>
-          <tbody>
-            ${tableRows.join("")}
-          </tbody>
-        </table>
-      </body>
-    </html>`;
-
-  return new Response(html, {
-    headers: { "Content-Type": "text/html" }
-  });
-}
-
-return new Response("Not found", { status: 404 });
-}
-}
-=======
-
-    if (url.pathname === "/dashboard") {
-      const list = await env.EMAIL_TRACKER.list();
-      const rows = await Promise.all(
-        list.keys.map(async (key) => {
-          const value = await env.EMAIL_TRACKER.get(key.name);
-          const data = JSON.parse(value);
-          return `<tr>
-                    <td>${data.id}</td>
-                    <td>${data.timestamp}</td>
-                    <td>${data.userAgent}</td>
-                  </tr>`;
-        })
-      );
-
-      const html = `
+const html = `
         <!DOCTYPE html>
         <html lang="en">
         <head>
@@ -200,22 +151,21 @@ return new Response("Not found", { status: 404 });
                 <tr><th>ID</th><th>Timestamp</th><th>User Agent</th></tr>
               </thead>
               <tbody>
-                ${rows.join("") || `<tr><td colspan="3">No opens recorded yet.</td></tr>`}
+                ${tableRows.join("") || `<tr><td colspan="3">No opens recorded yet.</td></tr>`}
               </tbody>
             </table>
           </div>
         </body>
         </html>`;
+  return new Response(html, {
+    headers: { "Content-Type": "text/html" }
+  });
+}
 
-      return new Response(html, { headers: { "Content-Type": "text/html" } });
-    }
-
-    if (url.pathname === "/") {
+if (url.pathname === "/") {
   		return new Response("Email Tracker is live. Visit /dashboard to see results.");
 	}
 
-	return new Response("Not found", { status: 404 });
-
-  }
-};
->>>>>>> aecc9bbd3a30dd6ab97d89b3c7f09ac6ca91d29d
+return new Response("Not found", { status: 404 });
+}
+}
