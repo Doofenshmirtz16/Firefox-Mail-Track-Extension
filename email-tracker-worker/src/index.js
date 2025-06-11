@@ -52,17 +52,95 @@ export default {
       );
 
       const html = `
-        <html>
-          <head><title>Email Opens</title></head>
-          <body>
-            <h1>Email Opens Dashboard</h1>
-            <table border="1" cellpadding="6">
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Email Opens Dashboard</title>
+          <style>
+            body {
+              margin: 0;
+              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+              background: #f0f2f5;
+              color: #333;
+            }
+            .container {
+              max-width: 960px;
+              margin: 40px auto;
+              background: white;
+              border-radius: 12px;
+              padding: 30px;
+              box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            }
+            h1 {
+              text-align: center;
+              margin-bottom: 24px;
+              color: #1a73e8;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 16px;
+            }
+            th, td {
+              padding: 12px 16px;
+              text-align: left;
+              border-bottom: 1px solid #e0e0e0;
+            }
+            th {
+              background: #f5f5f5;
+              font-weight: 600;
+            }
+            tr:hover {
+              background-color: #f1f9ff;
+            }
+            @media (max-width: 600px) {
+              .container {
+                padding: 16px;
+              }
+              table, thead, tbody, th, td, tr {
+                display: block;
+              }
+              th {
+                display: none;
+              }
+              td {
+                position: relative;
+                padding-left: 50%;
+                margin-bottom: 12px;
+                border: none;
+                border-bottom: 1px solid #eee;
+              }
+              td:before {
+                position: absolute;
+                top: 12px;
+                left: 16px;
+                width: 45%;
+                padding-right: 10px;
+                white-space: nowrap;
+                font-weight: 600;
+                color: #555;
+              }
+              td:nth-of-type(1):before { content: "ID"; }
+              td:nth-of-type(2):before { content: "Timestamp"; }
+              td:nth-of-type(3):before { content: "User Agent"; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h1>📬 Email Opens Dashboard</h1>
+            <table>
               <thead>
                 <tr><th>ID</th><th>Timestamp</th><th>User Agent</th></tr>
               </thead>
-              <tbody>${rows.join("")}</tbody>
+              <tbody>
+                ${rows.join("") || `<tr><td colspan="3">No opens recorded yet.</td></tr>`}
+              </tbody>
             </table>
-          </body>
+          </div>
+        </body>
         </html>`;
 
       return new Response(html, { headers: { "Content-Type": "text/html" } });
@@ -76,5 +154,3 @@ export default {
 
   }
 };
-
-
