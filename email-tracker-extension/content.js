@@ -12,20 +12,22 @@ function insertTrackingPixel() {
     if (body.querySelector('.email-tracking-pixel')) return;
 
     if (!currentTrackingId) {
-      currentTrackingId = generateTrackingId();  // generate once per session
+      currentTrackingId = generateTrackingId();
     }
 
-    const img = document.createElement('img');
-    img.src = `https://email-tracker-worker.agrawal-kr9.workers.dev/pixel?id=${currentTrackingId}`;
-    img.width = 1;
-    img.height = 1;
-    img.style.display = "none";
-    img.className = "email-tracking-pixel";
-    img.setAttribute('data-tracking-id', currentTrackingId);
+    const pixel = document.createElement('img');
+    pixel.src = `https://email-tracker-worker.agrawal-kr9.workers.dev/pixel?id=${currentTrackingId}`;
+    pixel.width = 1;
+    pixel.height = 1;
+    pixel.style.display = "none";
+    pixel.className = "email-tracking-pixel";
+    pixel.setAttribute('data-tracking-id', currentTrackingId);
 
-    body.appendChild(img);
-    console.log(`[Email Tracker] Inserted pixel with ID: ${currentTrackingId}`);
+    body.appendChild(pixel);
+    console.log(`[📥 Pixel inserted] ID: ${currentTrackingId}`);
   });
 }
 
 setInterval(insertTrackingPixel, 2000);
+
+
