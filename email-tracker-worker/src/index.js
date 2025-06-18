@@ -1,6 +1,3 @@
-
-
-
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -34,10 +31,6 @@ export default {
         { headers: { "Content-Type": "image/gif", "Cache-Control": "no-cache" } }
       );
     }
-<<<<<<< HEAD
-=======
-  }
->>>>>>> 43965ce08d4d8d6008ada437e29720c67ecd8e79
 
     // 2. Metadata POST
     if (url.pathname === "/map" && request.method === "POST") {
@@ -95,9 +88,10 @@ export default {
     // 4. Dashboard (original layout restored, minimal columns)
 if (url.pathname === "/dashboard") {
   const list = await env.EMAIL_TRACKER.list();
+  const keys = list.keys.reverse(); // process newest entries first
   const summaries = [];
 
-  for (const key of list.keys) {
+  for (const key of keys) {
     if (key.name.endsWith("-meta")) continue;
 
     let data = {};
@@ -113,28 +107,70 @@ if (url.pathname === "/dashboard") {
       const first = sortedEvents[0];
       const last = sortedEvents[sortedEvents.length - 1];
 
-      const firstIST = new Date(first.timestamp).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
-      const lastIST = new Date(last.timestamp).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+      const firstRaw = first.timestamp;
+      const lastRaw = last.timestamp;
 
+      const firstIST = new Date(firstRaw).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+      const lastIST = new Date(lastRaw).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+
+      let subject = data.subject;
+      let recipient = data.recipient;
+
+      if (!subject || !recipient) {
+        try {
+          const metaRaw = await env.EMAIL_TRACKER.get(`${key.name}-meta`);
+          const meta = JSON.parse(metaRaw || "{}");
+          subject = subject || meta.subject || "No subject";
+          recipient = recipient || meta.recipient || "unknown";
+        } catch {
+          subject = subject || "No subject";
+          recipient = recipient || "unknown";
+        }
+      }
       summaries.push({
         id: key.name,
+        subject,
+        recipient,
         first: firstIST,
         last: lastIST,
-        agent: last.userAgent || "unknown"
+        lastRaw,
+        opens: events.length,
+        events: sortedEvents // for detail row
       });
     }
   }
 
-<<<<<<< HEAD
-  summaries.sort((a, b) => new Date(b.last) - new Date(a.last));
+  summaries.sort((a, b) => new Date(b.lastRaw) - new Date(a.lastRaw));
 
   const rows = summaries.map(entry => `
-    <tr>
+    <tr onclick="toggleDetails('${entry.id}')">
       <td>${entry.id}</td>
+      <td>${entry.subject}</td>
+      <td>${entry.recipient}</td>
+      <td>${entry.opens}</td>
       <td>${entry.first}</td>
       <td>${entry.last}</td>
-      <td>${entry.agent}</td>
-    </tr>`);
+      <td>${entry.events[entry.events.length - 1].userAgent}</td>
+    </tr>
+    <tr id="details-${entry.id}" class="details-row" style="display:none;">
+      <td colspan="7">
+        <strong>All Opens:</strong>
+        <table style="margin-top:10px; width:100%; border-collapse:collapse;">
+          <thead>
+            <tr><th>Time</th><th>User Agent</th></tr>
+          </thead>
+          <tbody>
+            ${entry.events.map(e => `
+              <tr>
+                <td>${new Date(e.timestamp).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
+                <td>${e.userAgent}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </td>
+    </tr>
+  `).join(""); 
 
   const html = `
     <!DOCTYPE html>
@@ -256,6 +292,14 @@ if (url.pathname === "/dashboard") {
         }
       </style>
     </head>
+    <script>
+      function toggleDetails(id) {
+        const row = document.getElementById('details-' + id);
+        if (row) {
+          row.style.display = row.style.display === 'none' ? '' : 'none';
+        }
+      }
+    </script>    
     <body>
       <div class="container">
         <h1>📬 Email Opens Dashboard</h1>
@@ -268,10 +312,18 @@ if (url.pathname === "/dashboard") {
         </div>
         <table>
           <thead>
-            <tr><th>ID</th><th>First Opened</th><th>Last Opened</th><th>User Agent</th></tr>
+            <tr>
+              <th>ID</th>
+              <th>Subject</th>
+              <th>Recipient</th>
+              <th>Opens</th>
+              <th>First Open</th>
+              <th>Last Open</th>
+              <th>User Agent</th>
+            </tr>
           </thead>
           <tbody>
-            ${rows.join("") || `<tr><td colspan="4">No opens recorded yet.</td></tr>`}
+            ${rows || `<tr><td colspan="4">No opens recorded yet.</td></tr>`}
           </tbody>
         </table>
       </div>
@@ -279,126 +331,52 @@ if (url.pathname === "/dashboard") {
     </html>
   `;
 
-=======
-const html = `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <meta charset="UTF-8" />
-          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-          <title>Email Opens Dashboard</title>
-          <style>
-            body {
-              margin: 0;
-              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-              background: #f0f2f5;
-              color: #333;
-            }
-            .container {
-              max-width: 960px;
-              margin: 40px auto;
-              background: white;
-              border-radius: 12px;
-              padding: 30px;
-              box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            }
-            h1 {
-              text-align: center;
-              margin-bottom: 24px;
-              color: #1a73e8;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-top: 16px;
-            }
-            th, td {
-              padding: 12px 16px;
-              text-align: left;
-              border-bottom: 1px solid #e0e0e0;
-            }
-            th {
-              background: #f5f5f5;
-              font-weight: 600;
-            }
-            tr:hover {
-              background-color: #f1f9ff;
-            }
-            @media (max-width: 600px) {
-              .container {
-                padding: 16px;
-              }
-              table, thead, tbody, th, td, tr {
-                display: block;
-              }
-              th {
-                display: none;
-              }
-              td {
-                position: relative;
-                padding-left: 50%;
-                margin-bottom: 12px;
-                border: none;
-                border-bottom: 1px solid #eee;
-              }
-              td:before {
-                position: absolute;
-                top: 12px;
-                left: 16px;
-                width: 45%;
-                padding-right: 10px;
-                white-space: nowrap;
-                font-weight: 600;
-                color: #555;
-              }
-              td:nth-of-type(1):before { content: "ID"; }
-              td:nth-of-type(2):before { content: "Timestamp"; }
-              td:nth-of-type(3):before { content: "User Agent"; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <h1>📬 Email Opens Dashboard</h1>
-            <table>
-              <thead>
-                <tr><th>ID</th><th>Timestamp</th><th>User Agent</th></tr>
-              </thead>
-              <tbody>
-                ${tableRows.join("") || `<tr><td colspan="3">No opens recorded yet.</td></tr>`}
-              </tbody>
-            </table>
-          </div>
-        </body>
-        </html>`;
->>>>>>> 43965ce08d4d8d6008ada437e29720c67ecd8e79
   return new Response(html, {
     headers: { "Content-Type": "text/html" }
   });
 }
-<<<<<<< HEAD
 
 
 
     // 6. Export CSV
     if (url.pathname === "/export") {
       const list = await env.EMAIL_TRACKER.list();
-      const rows = [["ID", "First Opened", "Last Opened", "User Agent"]];
+      const rows = [["ID", "Subject", "Recipient", "Opens", "First Open", "Last Open", "User Agent"]];
+      const keys = list.keys.reverse();
 
-      for (const key of list.keys) {
+      for (const key of keys) {
         if (key.name.endsWith("-meta")) continue;
 
         let events = [];
+        let parsed = {};
         try {
           const raw = await env.EMAIL_TRACKER.get(key.name);
-          const parsed = JSON.parse(raw || "{}");
+          parsed = JSON.parse(raw || "{}");
           events = parsed.events || [];
         } catch {}
 
         if (events.length > 0) {
           const sorted = events.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+          let subject = parsed.subject;
+          let recipient = parsed.recipient;
+
+          if (!subject || !recipient) {
+            try {
+              const metaRaw = await env.EMAIL_TRACKER.get(`${key.name}-meta`);
+              const meta = JSON.parse(metaRaw || "{}");
+              subject = subject || meta.subject || "No subject";
+              recipient = recipient || meta.recipient || "unknown";
+            } catch {
+              subject = subject || "No subject";
+              recipient = recipient || "unknown";
+            }
+          }
+
           rows.push([
             key.name,
+            subject,
+            recipient,
+            events.length,
             new Date(sorted[0].timestamp).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
             new Date(sorted[sorted.length - 1].timestamp).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
             sorted[sorted.length - 1].userAgent || "unknown"
@@ -406,7 +384,7 @@ const html = `
         }
       }
 
-      const csv = rows.map(r => r.map(c => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
+      const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
       return new Response(csv, {
         headers: {
           "Content-Type": "text/csv",
@@ -426,17 +404,3 @@ const html = `
     return new Response("Not found", { status: 404 });
   }
 };
-
-
-
-
-=======
-
-if (url.pathname === "/") {
-  		return new Response("Email Tracker is live. Visit /dashboard to see results.");
-	}
-
-return new Response("Not found", { status: 404 });
-}
-}
->>>>>>> 43965ce08d4d8d6008ada437e29720c67ecd8e79
