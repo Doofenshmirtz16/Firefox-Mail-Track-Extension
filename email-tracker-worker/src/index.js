@@ -2,17 +2,15 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
-    // 1. Pixel endpoint
     if (url.pathname === "/pixel") {
       const trackingId = url.searchParams.get("id") || "unknown";
       const subject = url.searchParams.get("subject") || "No subject";
       const recipient = url.searchParams.get("recipient") || "unknown";
       const timestamp = new Date().toISOString();
       const userAgent = request.headers.get("User-Agent") || "unknown";
-
-      const newEntry = { timestamp, userAgent };
       let data = { subject, recipient, events: [] };
       const existing = await env.EMAIL_TRACKER.get(trackingId);
+
       if (existing) {
         try {
           data = JSON.parse(existing);
@@ -20,6 +18,12 @@ export default {
           data = { subject, recipient, events: [] };
         }
       }
+
+      const newEntry = {
+        timestamp,
+        userAgent,
+        type: data.events.length === 0 ? "sent" : "opened"
+      };
 
       if (!data.subject) data.subject = subject;
       if (!data.recipient) data.recipient = recipient;
@@ -32,7 +36,6 @@ export default {
       );
     }
 
-    // 2. Metadata POST
     if (url.pathname === "/map" && request.method === "POST") {
       try {
         const body = await request.json();
@@ -46,7 +49,6 @@ export default {
       }
     }
 
-    // 3. Metadata GET fallback
     if (url.pathname === "/meta") {
       const trackingId = url.searchParams.get("id");
       if (!trackingId) return new Response("Missing tracking ID", { status: 400 });
@@ -58,7 +60,6 @@ export default {
       return new Response("Metadata stored", { status: 200 });
     }
 
-    // 4. JSON API for dashboard
     if (url.pathname === "/api/events") {
       const list = await env.EMAIL_TRACKER.list();
       const summaries = [];
@@ -85,7 +86,6 @@ export default {
       return new Response(JSON.stringify(summaries), { headers: { "Content-Type": "application/json" } });
     }
 
-    // 4. Dashboard (original layout restored, minimal columns)
 if (url.pathname === "/dashboard") {
   const list = await env.EMAIL_TRACKER.list();
   const keys = list.keys.reverse(); // process newest entries first
@@ -104,11 +104,11 @@ if (url.pathname === "/dashboard") {
 
     if (events.length > 0) {
       const sortedEvents = [...events].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-      const first = sortedEvents[0];
-      const last = sortedEvents[sortedEvents.length - 1];
+      const sentEvent = sortedEvents.find(e => e.type === "sent") || sortedEvents[0];
+      const lastEvent = sortedEvents[sortedEvents.length - 1];
 
-      const firstRaw = first.timestamp;
-      const lastRaw = last.timestamp;
+      const firstRaw = sentEvent.timestamp;
+      const lastRaw = lastEvent.timestamp;
 
       const firstIST = new Date(firstRaw).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
       const lastIST = new Date(lastRaw).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
@@ -127,6 +127,13 @@ if (url.pathname === "/dashboard") {
           recipient = recipient || "unknown";
         }
       }
+      const isPlaceholder = 
+        (subject === "No subject") &&
+        (recipient === "unknown") &&
+        events.length <= 1;
+
+      if (isPlaceholder) continue;
+
       summaries.push({
         id: key.name,
         subject,
@@ -134,7 +141,7 @@ if (url.pathname === "/dashboard") {
         first: firstIST,
         last: lastIST,
         lastRaw,
-        opens: events.length,
+        opens: events.filter(e => e.type !== "sent").length,
         events: sortedEvents // for detail row
       });
     }
@@ -163,7 +170,7 @@ if (url.pathname === "/dashboard") {
             ${entry.events.map(e => `
               <tr>
                 <td>${new Date(e.timestamp).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
-                <td>${e.userAgent}</td>
+                <td>${e.type === "sent" ? "📤" : "👁️"}</td>
               </tr>
             `).join("")}
           </tbody>
@@ -336,8 +343,6 @@ if (url.pathname === "/dashboard") {
   });
 }
 
-
-
     // 6. Export CSV
     if (url.pathname === "/export") {
       const list = await env.EMAIL_TRACKER.list();
@@ -356,7 +361,11 @@ if (url.pathname === "/dashboard") {
         } catch {}
 
         if (events.length > 0) {
-          const sorted = events.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+          const sortedEvents = [...events].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+          const sentEvent = sortedEvents.find(e => e.type === "sent") || sortedEvents[0];
+          const lastEvent = sortedEvents[sortedEvents.length - 1];
+
           let subject = parsed.subject;
           let recipient = parsed.recipient;
 
@@ -372,14 +381,22 @@ if (url.pathname === "/dashboard") {
             }
           }
 
+          const isPlaceholder = 
+            subject === "No subject" &&
+            recipient === "unknown" &&
+            sortedEvents.length <= 1;
+          if (isPlaceholder) continue;
+
+          const opens = sortedEvents.filter(e => e.type !== "sent").length;
+
           rows.push([
             key.name,
             subject,
             recipient,
-            events.length,
-            new Date(sorted[0].timestamp).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
-            new Date(sorted[sorted.length - 1].timestamp).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
-            sorted[sorted.length - 1].userAgent || "unknown"
+            opens,
+            new Date(sentEvent.timestamp).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
+            new Date(lastEvent.timestamp).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
+            lastEvent.userAgent || "unknown"
           ]);
         }
       }
@@ -393,14 +410,16 @@ if (url.pathname === "/dashboard") {
       });
     }
 
-    // 7. Root
     if (url.pathname === "/") {
       return new Response(`<html><body><h1>Email Tracker Worker</h1><p>Visit <a href="/dashboard">/dashboard</a> to view logs.</p></body></html>`, {
         headers: { "Content-Type": "text/html" }
       });
     }
 
-    // 8. Fallback
     return new Response("Not found", { status: 404 });
   }
 };
+
+
+
+
