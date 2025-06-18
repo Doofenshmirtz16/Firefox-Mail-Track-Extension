@@ -3,64 +3,68 @@ function generateTrackingId() {
 }
 
 function getSubjectAndRecipient() {
-  const subjectInput = document.querySelector('input[name="subjectbox"]');
-  const subject = subjectInput?.value?.trim() || "No subject";
+  const subjectEl = document.querySelector('input[name="subjectbox"]');
+  const subject = subjectEl?.value.trim() || "No subject";
 
-  const toField = document.querySelector('[aria-label="To recipients"]') ||
-                  document.querySelector('[aria-label="To"]');
+  const toTextarea = document.querySelector('textarea[name="to"]');
+  let recipient = toTextarea
+    ? toTextarea.value.trim() || "unknown"
+    : "unknown";
 
-  let recipient = "unknown";
-  if (toField) {
-    const emailChips = toField.querySelectorAll('span[email]');
-    if (emailChips.length > 0) {
-      recipient = Array.from(emailChips).map(span => span.getAttribute('email')).join(', ');
-    } else {
-      recipient = toField.textContent.trim() || "unknown";
+  if (recipient === "unknown") {
+    const chipContainer = document.querySelector('[aria-label="To recipients"], [aria-label="To"]');
+    if (chipContainer) {
+      const chips = chipContainer.querySelectorAll('span[email]');
+      if (chips.length) {
+        recipient = Array.from(chips)
+          .map(s => s.getAttribute('email'))
+          .join(', ');
+      }
     }
   }
 
   return { subject, recipient };
 }
 
-function insertTrackingPixelForCompose(composeBody) {
-  if (composeBody.querySelector('.email-tracking-pixel')) return;
+function injectPixel(body, id) {
+  const img = document.createElement('img');
+  img.src = `https://email-tracker-worker.doofenshmirtz17.workers.dev/pixel?id=${id}`;
+  img.width = 1;
+  img.height = 1;
+  img.style.display = 'none';
+  img.className = 'email-tracking-pixel';
+  body.appendChild(img);
+}
 
-  const id = generateTrackingId();
-  const { subject, recipient } = getSubjectAndRecipient();
+function hookSendButton(id) {
+  const sendBtn = document.querySelector('div.T-I[role="button"][data-tooltip^="Send"]');
+  if (!sendBtn || sendBtn.dataset.hooked) return;
+  sendBtn.dataset.hooked = 'true';
 
-  const pixel = document.createElement('img');
-  pixel.src = `https://email-tracker-worker.doofenshmirtz17.workers.dev/pixel?id=${id}&subject=${encodeURIComponent(subject)}&recipient=${encodeURIComponent(recipient)}`;
-  pixel.width = 1;
-  pixel.height = 1;
-  pixel.style.display = "none";
-  pixel.className = "email-tracking-pixel";
-  pixel.setAttribute('data-tracking-id', id);
-
-  composeBody.appendChild(pixel);
-  console.log(`[📥 Pixel inserted] ID: ${id} | ${subject} → ${recipient}`);
+  sendBtn.addEventListener('click', () => {
+    const { subject, recipient } = getSubjectAndRecipient();
+    const payload = JSON.stringify({ id, subject, recipient });
+    navigator.sendBeacon(
+      'https://email-tracker-worker.doofenshmirtz17.workers.dev/map',
+      new Blob([payload], { type: 'application/json' })
+    );
+  });
 }
 
 function trackComposeWindows() {
-  const composeBodies = document.querySelectorAll('[aria-label="Message Body"]');
+  const bodies = document.querySelectorAll('[aria-label="Message Body"]');
+  bodies.forEach(body => {
+    // If we’ve already processed this window, skip it
+    if (body.dataset.trackingId) return;
 
-  composeBodies.forEach(body => {
-    // If already has a pixel, skip
-    if (body.querySelector('.email-tracking-pixel')) return;
-
-    // Wait until subject or recipient has value
-    const interval = setInterval(() => {
-      const { subject, recipient } = getSubjectAndRecipient();
-      const subjectReady = subject !== "No subject";
-      const recipientReady = recipient !== "unknown";
-
-      if (subjectReady || recipientReady) {
-        insertTrackingPixelForCompose(body);
-        clearInterval(interval);
-      }
-    }, 1000); // check every 1 second
+    const id = generateTrackingId();
+    body.dataset.trackingId = id;
+    injectPixel(body, id);
+    hookSendButton(id);
+    console.log(`[Tracker] Compose window set up with ID=${id}`);
   });
 }
 
 setInterval(trackComposeWindows, 2000);
 
-//Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+//Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass (Use this command in your vs-code terminal every time they ask for security access) 
