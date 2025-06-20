@@ -170,7 +170,7 @@ if (url.pathname === "/dashboard") {
             ${entry.events.map(e => `
               <tr>
                 <td>${new Date(e.timestamp).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</td>
-                <td>${e.type === "sent" ? "📤" : "👁️"}</td>
+                <td>${e.type === "sent" ? "📩 Sent - " : "👁️ Opened - "}${e.userAgent || "unknown"}</td>
               </tr>
             `).join("")}
           </tbody>
