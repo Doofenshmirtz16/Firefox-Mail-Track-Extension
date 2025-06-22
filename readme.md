@@ -27,12 +27,14 @@ Track whether your emails are opened using a Firefox extension and a Cloudflare 
 ---
 
 ## Additional Features
-- Popup feature with icon for the extension in firefox
+- Popup feature with icon for the extension in firefox showing summary of dashboard and link to it.
 - Dashboard shows both types of logs and timestamps for each mail: time when mail is sent to the receiver and time when mails are opened
 - Same mails when opened more than once have are counted under same id
 - Expandable section for each mail to get information about time and user agent for all the logged in data
 - Subject and Recipients column are successully implemented without getting the tracker stripped from the mail
-- Feature to download data as a csv file
+- Feature to download data as a csv file (screenshot below)
+
+![Screenshot (89)](https://github.com/user-attachments/assets/a6db4656-6a39-4b2f-96f3-c7d8bf72357f)
 
 ---
 
@@ -54,6 +56,7 @@ email-tracker/
 ├── wrangler.jsonc         # Wrangler config for Cloudflare Worker
 └── README.md              # You're here
 ```
+![Screenshot (82)](https://github.com/user-attachments/assets/9dc66cfd-e2cd-4c2e-816b-50a9c066d684)
 
 ---
 
@@ -130,6 +133,9 @@ npx wrangler deploy
 * Select the `manifest.json` file inside your `extension/` folder
 * Send a test email from Gmail to see tracking in action
 
+![Screenshot (85)](https://github.com/user-attachments/assets/9d008dc0-6390-4410-8aa4-57e8de23b4b2)
+
+
 ---
 
 ## 📊 Dashboard
@@ -149,6 +155,9 @@ You’ll see:
 - Last open time (IST)
 - Open count
 - Export CSV option
+
+![Screenshot (87)](https://github.com/user-attachments/assets/aa448d5d-81fe-411c-a0e1-3b6cd801af8b)
+
 
 ---
 
@@ -175,6 +184,8 @@ Click the toolbar icon for a quick popup showing:
 - Total tracked emails
 - Last opened email info
 - Link to full dashboard
+
+![Screenshot (88)](https://github.com/user-attachments/assets/7fc3c1f1-c7a2-41c5-8046-608df03a0c02)
 
 ---
 
