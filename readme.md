@@ -49,6 +49,12 @@ email-tracker/
 
 ## 🚀 Setup Instructions
 
+### 2. Clone the repository
+```
+git clone https://github.com/Doofenshmirtz16/Firefox-Mail-Track-Extension.git
+cd Firefox-Mail-Track-Extension
+```
+
 ### 1. Set up Cloudflare Worker
 
 Install Wrangler CLI:
@@ -106,6 +112,16 @@ npx wrangler deploy
 
 ---
 
+### 4. Load Extension in Firefox
+
+* Visit `about:debugging`
+* Click "This Firefox"
+* Click "Load Temporary Add-on"
+* Select the `manifest.json` file inside your `extension/` folder
+* Send a test email from Gmail to see tracking in action
+
+---
+
 ## 📊 Dashboard
 
 Open your Worker endpoint:
@@ -126,16 +142,6 @@ You’ll see:
 
 ---
 
-### 4. Load Extension in Firefox
-
-* Visit `about:debugging`
-* Click "This Firefox"
-* Click "Load Temporary Add-on"
-* Select the `manifest.json` file inside your `extension/` folder
-* Send a test email from Gmail to see tracking in action
-
----
-
 ## 📝 Manifest Highlights
 
 ```json
@@ -148,6 +154,9 @@ You’ll see:
   }
 }
 ```
+
+---
+
 
 ## 🧪 Popup Summary
 
