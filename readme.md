@@ -26,6 +26,16 @@ Track whether your emails are opened using a Firefox extension and a Cloudflare 
 
 ---
 
+## Additional Features
+- Popup feature with icon for the extension in firefox
+- Dashboard shows both types of logs and timestamps for each mail: time when mail is sent to the receiver and time when mails are opened
+- Same mails when opened more than once have are counted under same id
+- Expandable section for each mail to get information about time and user agent for all the logged in data
+- Subject and Recipients column are successully implemented without getting the tracker stripped from the mail
+- Feature to download data as an csv file
+
+---
+
 ## 📁 Project Structure
 
 ```
