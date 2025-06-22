@@ -6,19 +6,23 @@ Track whether your emails are opened using a Firefox extension and a Cloudflare 
 
 ## ✨ Features
 
-* 🔍 Inserts a 1×1 invisible tracking pixel into Gmail compose window
-* ☁️ Cloudflare Worker handles pixel requests
-* 📦 Cloudflare KV logs opens with timestamp & user agent
-* 📊 Simple dashboard at `/dashboard` to view logs
+- 🔍 Automatically inserts a unique invisible tracking pixel in Gmail
+- 🧠 Uses two ID system (system-generated + user-facing ID) for reliability
+- 📦 Cloudflare KV logs open events with timestamps and user agents
+- 🇮🇳 Timestamps shown in IST for relevance
+- 📊 Detailed dashboard showing opens, metadata, and export to CSV
+- 📋 Extension popup shows latest email tracking summary
+- 🧼 Filters out Gmail image proxy prefetch to reduce false positives
+- 🔁 Automatically reinjects removed tracking pixels
+- 🌐 Deployable on any Cloudflare Worker and compatible with modern Firefox
 
 ---
 
 ## 🧱 Tech Stack
 
-* Firefox WebExtension (JavaScript)
-* Cloudflare Workers
-* Cloudflare KV
-* HTML/CSS (Dashboard)
+- Firefox WebExtension (JavaScript, Manifest V3)
+- Cloudflare Workers & KV storage
+- HTML/CSS (Dashboard + Popup UI)
 
 ---
 
@@ -26,13 +30,19 @@ Track whether your emails are opened using a Firefox extension and a Cloudflare 
 
 ```
 email-tracker/
-├── extension/                    # Firefox extension files
-│   ├── manifest.json
-│   └── content.js
-├── email-tracker-worker/        # Cloudflare Worker backend
-│   ├── index.js
-│   └── wrangler.jsonc
-└── README.md
+├── content.js             # Main script that runs in Gmail and injects tracking pixels
+├── popup.html             # Popup UI
+├── popup.js               # Fetches summary data for popup
+├── style.css              # Styling for popup
+├── icons/                 # Icon assets (48x48 and 96x96 PNG)
+│   ├── icon48.png
+│   └── icon96.png
+├── manifest.json          # Firefox extension manifest (v3)
+├── dashboard.html         # Visual dashboard for email open logs
+├── dashboard.js           # Fetches and displays logs from Cloudflare Worker
+├── worker.js              # Cloudflare Worker backend (pixel, map, export, dashboard endpoints)
+├── wrangler.jsonc         # Wrangler config for Cloudflare Worker
+└── README.md              # You're here
 ```
 
 ---
@@ -92,124 +102,27 @@ Deploy:
 ```bash
 npx wrangler deploy
 ```
-
-### 2. Create Cloudflare Worker Code
-
-`index.js`
-
-```js
-export default {
-  async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-
-    if (url.pathname === "/pixel") {
-      const trackingId = url.searchParams.get("id") || "unknown";
-      const timestamp = new Date().toISOString();
-      const userAgent = request.headers.get("User-Agent") || "unknown";
-
-      const logEntry = JSON.stringify({ id: trackingId, timestamp, userAgent });
-      const kvKey = `${trackingId}:${timestamp}`;
-      await env.EMAIL_TRACKER.put(kvKey, logEntry);
-
-      console.log(`[OPEN] Email opened with ID: ${trackingId} at ${timestamp}`);
-
-      return new Response(
-        Uint8Array.from(
-          atob("R0lGODlhAQABAPAAAAAAAAAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="),
-          c => c.charCodeAt(0)
-        ),
-        {
-          headers: {
-            "Content-Type": "image/gif",
-            "Cache-Control": "no-cache"
-          }
-        }
-      );
-    }
-
-    if (url.pathname === "/dashboard") {
-      const list = await env.EMAIL_TRACKER.list();
-      const rows = await Promise.all(
-        list.keys.map(async (key) => {
-          const value = await env.EMAIL_TRACKER.get(key.name);
-          const data = JSON.parse(value);
-          return `<tr>
-                    <td>${data.id}</td>
-                    <td>${data.timestamp}</td>
-                    <td>${data.userAgent}</td>
-                  </tr>`;
-        })
-      );
-
-      const html = `
-        <html>
-          <head><title>Email Opens</title></head>
-          <body>
-            <h1>Email Opens Dashboard</h1>
-            <table border="1" cellpadding="6">
-              <thead>
-                <tr><th>ID</th><th>Timestamp</th><th>User Agent</th></tr>
-              </thead>
-              <tbody>${rows.join("")}</tbody>
-            </table>
-          </body>
-        </html>`;
-
-      return new Response(html, { headers: { "Content-Type": "text/html" } });
-    }
-
-    return new Response("Not found", { status: 404 });
-  }
-};
-```
+#### "Remember to change the link of your worker url with your worker domain in all files, i.e, content.js, manifest.js and index.js (if applicable)."
 
 ---
 
-### 3. Firefox Extension Code
+## 📊 Dashboard
 
-`manifest.json`
+Open your Worker endpoint:
 
-```json
-{
-  "manifest_version": 2,
-  "name": "Email Tracker",
-  "version": "1.0",
-  "description": "Track email opens via Cloudflare Worker",
-  "permissions": ["https://mail.google.com/*"],
-  "content_scripts": [
-    {
-      "matches": ["https://mail.google.com/*"],
-      "js": ["content.js"],
-      "run_at": "document_end"
-    }
-  ]
-}
+```
+https://<your-worker-subdomain>.workers.dev/dashboard
 ```
 
-`content.js`
+You’ll see:
 
-```js
-function insertTrackingPixel() {
-  const composeBodies = document.querySelectorAll('[aria-label="Message Body"]');
-
-  composeBodies.forEach(body => {
-    if (body.querySelector('.email-tracking-pixel')) return;
-
-    const img = document.createElement('img');
-    const trackingId = "abc123"; // Replace with dynamic ID logic later
-    img.src = `https://your-subdomain.workers.dev/pixel?id=${trackingId}`;
-    img.width = 1;
-    img.height = 1;
-    img.style.display = "none";
-    img.className = "email-tracking-pixel";
-
-    body.appendChild(img);
-    console.log("[Email Tracker] Pixel inserted.");
-  });
-}
-
-setInterval(insertTrackingPixel, 2000);
-```
+- Email ID
+- Subject
+- Recipient
+- First open time (IST)
+- Last open time (IST)
+- Open count
+- Export CSV option
 
 ---
 
@@ -219,27 +132,40 @@ setInterval(insertTrackingPixel, 2000);
 * Click "This Firefox"
 * Click "Load Temporary Add-on"
 * Select the `manifest.json` file inside your `extension/` folder
+* Send a test email from Gmail to see tracking in action
+
+---
+
+## 📝 Manifest Highlights
+
+```json
+"action": {
+  "default_title": "Email Tracker Summary",
+  "default_popup": "popup.html",
+  "default_icon": {
+    "48": "icons/icon48.png",
+    "96": "icons/icon96.png"
+  }
+}
+```
+
+## 🧪 Popup Summary
+
+Click the toolbar icon for a quick popup showing:
+
+- Total tracked emails
+- Last opened email info
+- Link to full dashboard
 
 ---
 
 ## 📊 Sample Dashboard Output
-
 ```
-Email Opens Dashboard
-----------------------
-ID        | Timestamp                | User Agent
-----------|--------------------------|-----------------------------
-abc123    | 2025-06-09T12:20:41Z     | Mozilla/5.0 (...)
+| ID            | Subject        | Recipient                        | Opens | First Open             | Last Open              | User Agent                                            |
+| ------------- | -------------- | -------------------------------- | ----- | ---------------------- | ---------------------- | ----------------------------------------------------- |
+| `id-a1b2c3d4` | `Project Plan` | `example.user@gmail.com`         | 2     | 22/6/2025, 4:15:30 pm  | 22/6/2025, 4:30:45 pm  | Mozilla/5.0 (Windows NT 5.1; ... GoogleImageProxy)    |
 ```
-
----
-
-## 📌 Future Enhancements
-
-* [ ] Generate unique IDs per email
-* [ ] Secure dashboard with auth
-* [ ] Export logs to CSV
-* [ ] Add support for multiple email platforms
+Clicking on each section would provide you with details of mail
 
 ---
 
@@ -249,4 +175,4 @@ Developed by Kritagya Agarwal, Sumit Sharma, Jay Jain, 2025. Inspired by Mailtra
 
 ## 📄 License
 
-MIT License
+MIT License – free for personal and educational use.
