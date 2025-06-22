@@ -2,6 +2,44 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
+    if (url.pathname === "/dashboard-json") {
+      const list = await env.EMAIL_TRACKER.list();
+      const keys = list.keys.reverse();
+      const data = [];
+
+      for (const key of keys) {
+        if (key.name.endsWith("-meta")) continue;
+
+        const raw = await env.EMAIL_TRACKER.get(key.name);
+        const parsed = JSON.parse(raw || "{}");
+        const events = parsed.events || [];
+
+        if (events.length === 0) continue;
+
+        const sortedEvents = [...events].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        const sentEvent = sortedEvents.find(e => e.type === "sent") || sortedEvents[0];
+        const lastEvent = sortedEvents[sortedEvents.length - 1];
+
+        const opens = sortedEvents.filter(e => e.type !== "sent" && !e.userAgent.includes("Firefox/139.0")).length;
+
+        data.push({
+          id: key.name,
+          subject: parsed.subject || "No subject",
+          recipient: parsed.recipient || "unknown",
+          opens,
+          first: new Date(sentEvent.timestamp).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
+          last: new Date(lastEvent.timestamp).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
+        });
+      }
+
+      return new Response(JSON.stringify(data), {
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        }
+      });
+    }
+
     if (url.pathname === "/pixel") {
       const trackingId = url.searchParams.get("id") || "unknown";
       const subject = url.searchParams.get("subject") || "No subject";
@@ -25,8 +63,8 @@ export default {
         type: data.events.length === 0 ? "sent" : "opened"
       };
 
-      if (!data.subject) data.subject = subject;
-      if (!data.recipient) data.recipient = recipient;
+      if (data.subject === "No subject") data.subject = subject;
+      if (data.recipient === "unknown") data.recipient = recipient;
       data.events.push(newEntry);
 
       await env.EMAIL_TRACKER.put(trackingId, JSON.stringify(data));
@@ -39,10 +77,14 @@ export default {
     if (url.pathname === "/map" && request.method === "POST") {
       try {
         const body = await request.json();
-        const { id, subject, recipient } = body;
-        if (!id) return new Response("Missing ID", { status: 400 });
+        const { id, systemId, subject, recipient } = body;
+        if (!id || !systemId) return new Response("Missing ID", { status: 400 });
 
-        await env.EMAIL_TRACKER.put(`${id}-meta`, JSON.stringify({ subject: subject || "No subject", recipient: recipient || "unknown" }));
+        await env.EMAIL_TRACKER.put(`${systemId}-meta`, JSON.stringify({
+          subject: subject || "No subject",
+          recipient: recipient || "unknown"
+        }));
+
         return new Response("Metadata saved", { status: 200 });
       } catch {
         return new Response("Error parsing metadata", { status: 400 });
@@ -88,8 +130,9 @@ export default {
 
 if (url.pathname === "/dashboard") {
   const list = await env.EMAIL_TRACKER.list();
-  const keys = list.keys.reverse(); // process newest entries first
+  const keys = list.keys.reverse();
   const summaries = [];
+  const metadataMap = {};
 
   for (const key of keys) {
     if (key.name.endsWith("-meta")) continue;
@@ -98,9 +141,15 @@ if (url.pathname === "/dashboard") {
     try {
       const raw = await env.EMAIL_TRACKER.get(key.name);
       data = JSON.parse(raw || "{}");
-    } catch (e) {}
+    } catch {}
 
     const events = Array.isArray(data.events) ? data.events : [];
+
+    if (events.length === 1 && events[0].type === "sent") {
+      const metaRaw = await env.EMAIL_TRACKER.get(`${key.name}-meta`);
+      if (metaRaw) metadataMap[key.name] = JSON.parse(metaRaw || "{}");
+      continue;
+    }
 
     if (events.length > 0) {
       const sortedEvents = [...events].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
@@ -117,22 +166,33 @@ if (url.pathname === "/dashboard") {
       let recipient = data.recipient;
 
       if (!subject || !recipient) {
-        try {
-          const metaRaw = await env.EMAIL_TRACKER.get(`${key.name}-meta`);
-          const meta = JSON.parse(metaRaw || "{}");
-          subject = subject || meta.subject || "No subject";
-          recipient = recipient || meta.recipient || "unknown";
-        } catch {
-          subject = subject || "No subject";
-          recipient = recipient || "unknown";
-        }
+        const systemMeta = metadataMap[data.systemId]; // Use collected meta from system ID
+        subject = subject || systemMeta?.subject || "No subject";
+        recipient = recipient || systemMeta?.recipient || "unknown";
       }
-      const isPlaceholder = 
-        (subject === "No subject") &&
-        (recipient === "unknown") &&
-        events.length <= 1;
 
-      if (isPlaceholder) continue;
+      const sentUA = (sentEvent.userAgent || "").toLowerCase();
+      const sentTime = new Date(sentEvent.timestamp).getTime();
+
+      const openEvents = sortedEvents.filter(e => {
+        if (e.type !== "opened") return false;
+
+        const openUA = (e.userAgent || "").toLowerCase();
+        const openTime = new Date(e.timestamp).getTime();
+        const diff = (openTime - sentTime) / 1000;
+
+        // Real Gmail open
+        if (openUA.includes("googleimageproxy")) return true;
+
+        // Different UA than sender
+        if (openUA !== sentUA) return true;
+
+        // Same UA but significantly later
+        if (diff > 20) return true;
+
+        // Probably a fake open from sender
+        return false;
+      });
 
       summaries.push({
         id: key.name,
@@ -141,8 +201,8 @@ if (url.pathname === "/dashboard") {
         first: firstIST,
         last: lastIST,
         lastRaw,
-        opens: events.filter(e => e.type !== "sent").length,
-        events: sortedEvents // for detail row
+        opens: openEvents.length,
+        events: [sentEvent, ...openEvents] 
       });
     }
   }
@@ -343,11 +403,12 @@ if (url.pathname === "/dashboard") {
   });
 }
 
-    // 6. Export CSV
+    // Export CSV
     if (url.pathname === "/export") {
       const list = await env.EMAIL_TRACKER.list();
       const rows = [["ID", "Subject", "Recipient", "Opens", "First Open", "Last Open", "User Agent"]];
       const keys = list.keys.reverse();
+      const metadataMap = {};
 
       for (const key of keys) {
         if (key.name.endsWith("-meta")) continue;
@@ -360,6 +421,13 @@ if (url.pathname === "/dashboard") {
           events = parsed.events || [];
         } catch {}
 
+        // Skip system ID: only one event and it's 'sent'
+        if (events.length === 1 && events[0].type === "sent") {
+          const metaRaw = await env.EMAIL_TRACKER.get(`${key.name}-meta`);
+          if (metaRaw) metadataMap[key.name] = JSON.parse(metaRaw || "{}");
+          continue;
+        }
+
         if (events.length > 0) {
           const sortedEvents = [...events].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
@@ -370,15 +438,9 @@ if (url.pathname === "/dashboard") {
           let recipient = parsed.recipient;
 
           if (!subject || !recipient) {
-            try {
-              const metaRaw = await env.EMAIL_TRACKER.get(`${key.name}-meta`);
-              const meta = JSON.parse(metaRaw || "{}");
-              subject = subject || meta.subject || "No subject";
-              recipient = recipient || meta.recipient || "unknown";
-            } catch {
-              subject = subject || "No subject";
-              recipient = recipient || "unknown";
-            }
+            const systemMeta = metadataMap[parsed.systemId];
+            subject = subject || systemMeta?.subject || "No subject";
+            recipient = recipient || systemMeta?.recipient || "unknown";
           }
 
           const isPlaceholder = 
@@ -387,16 +449,17 @@ if (url.pathname === "/dashboard") {
             sortedEvents.length <= 1;
           if (isPlaceholder) continue;
 
-          const opens = sortedEvents.filter(e => e.type !== "sent").length;
+          // Only include real open events (exclude own opens before sending)
+          const openEvents = sortedEvents.filter(e => e.type !== "sent" && !e.userAgent?.includes("Firefox/139.0"));
 
           rows.push([
             key.name,
             subject,
             recipient,
-            opens,
+            openEvents.length,
             new Date(sentEvent.timestamp).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
             new Date(lastEvent.timestamp).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
-            lastEvent.userAgent || "unknown"
+            openEvents[openEvents.length - 1]?.userAgent || "unknown"
           ]);
         }
       }
@@ -419,7 +482,6 @@ if (url.pathname === "/dashboard") {
     return new Response("Not found", { status: 404 });
   }
 };
-
 
 
 
