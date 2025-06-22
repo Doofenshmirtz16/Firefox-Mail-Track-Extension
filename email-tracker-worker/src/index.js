@@ -130,7 +130,7 @@ export default {
 
 if (url.pathname === "/dashboard") {
   const list = await env.EMAIL_TRACKER.list();
-  const keys = list.keys.reverse();
+  const keys = list.keys.reverse(); // process newest entries first
   const summaries = [];
   const metadataMap = {};
 
@@ -166,7 +166,7 @@ if (url.pathname === "/dashboard") {
       let recipient = data.recipient;
 
       if (!subject || !recipient) {
-        const systemMeta = metadataMap[data.systemId]; // Use collected meta from system ID
+        const systemMeta = metadataMap[data.systemId];
         subject = subject || systemMeta?.subject || "No subject";
         recipient = recipient || systemMeta?.recipient || "unknown";
       }
@@ -181,18 +181,19 @@ if (url.pathname === "/dashboard") {
         const openTime = new Date(e.timestamp).getTime();
         const diff = (openTime - sentTime) / 1000;
 
-        // Real Gmail open
+        // Real Gmail open via proxy
         if (openUA.includes("googleimageproxy")) return true;
 
-        // Different UA than sender
-        if (openUA !== sentUA) return true;
+        // Clearly different device/browser
+        if (openUA !== sentUA && !openUA.includes("firefox/139.0")) return true;
 
-        // Same UA but significantly later
-        if (diff > 20) return true;
+        // Same UA but delayed significantly (e.g., email reopened)
+        if (openUA === sentUA && diff > 30) return true;
 
-        // Probably a fake open from sender
+        // Probably your own browser or test run
         return false;
       });
+
 
       summaries.push({
         id: key.name,
@@ -403,7 +404,7 @@ if (url.pathname === "/dashboard") {
   });
 }
 
-    // Export CSV
+    // 6. Export CSV
     if (url.pathname === "/export") {
       const list = await env.EMAIL_TRACKER.list();
       const rows = [["ID", "Subject", "Recipient", "Opens", "First Open", "Last Open", "User Agent"]];
@@ -480,6 +481,3 @@ if (url.pathname === "/dashboard") {
     return new Response("Not found", { status: 404 });
   }
 };
-
-
-
