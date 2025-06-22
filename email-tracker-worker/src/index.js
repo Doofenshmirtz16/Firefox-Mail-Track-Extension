@@ -421,7 +421,6 @@ if (url.pathname === "/dashboard") {
           events = parsed.events || [];
         } catch {}
 
-        // Skip system ID: only one event and it's 'sent'
         if (events.length === 1 && events[0].type === "sent") {
           const metaRaw = await env.EMAIL_TRACKER.get(`${key.name}-meta`);
           if (metaRaw) metadataMap[key.name] = JSON.parse(metaRaw || "{}");
@@ -449,7 +448,6 @@ if (url.pathname === "/dashboard") {
             sortedEvents.length <= 1;
           if (isPlaceholder) continue;
 
-          // Only include real open events (exclude own opens before sending)
           const openEvents = sortedEvents.filter(e => e.type !== "sent" && !e.userAgent?.includes("Firefox/139.0"));
 
           rows.push([
