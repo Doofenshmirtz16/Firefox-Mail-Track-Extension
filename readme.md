@@ -32,7 +32,7 @@ Track whether your emails are opened using a Firefox extension and a Cloudflare 
 - Same mails when opened more than once have are counted under same id
 - Expandable section for each mail to get information about time and user agent for all the logged in data
 - Subject and Recipients column are successully implemented without getting the tracker stripped from the mail
-- Feature to download data as an csv file
+- Feature to download data as a csv file
 
 ---
 
