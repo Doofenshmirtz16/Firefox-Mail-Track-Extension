@@ -3,19 +3,40 @@
   "name": "Email Tracker for Firefox",
   "version": "1.0",
   "description": "Tracks if your emails are opened by injecting a tracking pixel.",
+  "author": "Sumit Sharma, Kritagya Agrawal, Jay Jain",
+  "homepage_url": "https://email-tracker-worker.doofenshmirtz17.workers.dev/",  
   "permissions": [
     "storage",
     "activeTab",
     "scripting"
   ],
   "host_permissions": [
-    "https://mail.google.com/*"
+    "https://mail.google.com/*",
+    "https://email-tracker-worker.doofenshmirtz17.workers.dev/*"
   ],
+  "icons": {
+    "48": "icons/icon48.png",
+    "96": "icons/icon96.png"
+  },
+  "action": {
+    "default_title": "Email Tracker Summary",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "48": "icons/icon48.png",
+      "96": "icons/icon96.png"
+    }
+  },
   "content_scripts": [
     {
       "matches": ["https://mail.google.com/*"],
       "js": ["content.js"],
       "run_at": "document_end"
     }
-  ]
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "email-tracker@gdsckjs.dev",
+      "strict_min_version": "109.0"
+    }
+  }
 }
